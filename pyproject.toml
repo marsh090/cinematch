@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "cinematch"
+version = "0.1.0"
+description = "Plataforma de recomendação de filmes e comunidades"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.0.2"
+djangorestframework = "^3.14.0"
+django-cors-headers = "^4.3.1"
+psycopg2-binary = "^2.9.9"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+djangorestframework-simplejwt = "^5.3.1"
+aiohttp = "^3.11.18"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.1.1"
+flake8 = "^7.0.0"
+pytest = "^8.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api" 

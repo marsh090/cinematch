@@ -1,0 +1,44 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body, .MuiTypography-root {
+  color: #fff !important;
+}
+
+a, .MuiLink-root {
+  color: #3568d4 !important;
+  text-decoration: underline;
+  text-decoration-color: #3568d4 !important;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+a:hover, .MuiLink-root:hover {
+  color: #fff !important;
+  text-decoration-color: #fff !important;
+}
+
+header a, .MuiAppBar-root a, .MuiAppBar-root .MuiLink-root {
+  color: #fff !important;
+  text-decoration-color: #fff !important;
+}
+header a:hover, .MuiAppBar-root a:hover, .MuiAppBar-root .MuiLink-root:hover {
+  color: #fff !important;
+  text-decoration-color: #fff !important;
+} 
