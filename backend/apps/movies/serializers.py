@@ -54,13 +54,14 @@ class ForumCommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     replies = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
+    filme_titulo = serializers.CharField(source='filme.titulo', read_only=True)
 
     class Meta:
         model = ForumComment
         fields = [
-            'id', 'filme', 'user', 'texto', 'parent', 'replies', 'likes_count', 'created_at', 'updated_at', 'reported'
+            'id', 'filme', 'filme_titulo', 'user', 'texto', 'parent', 'replies', 'likes_count', 'created_at', 'updated_at', 'reported'
         ]
-        read_only_fields = ['user', 'likes_count', 'created_at', 'updated_at', 'replies']
+        read_only_fields = ['user', 'likes_count', 'created_at', 'updated_at', 'replies', 'filme_titulo']
 
     def get_replies(self, obj):
         # Retorna apenas as respostas diretas (não recursivo)

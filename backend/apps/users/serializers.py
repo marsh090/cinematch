@@ -7,10 +7,12 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    banner_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'name', 'is_following')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'name', 'is_following', 'avatar', 'banner', 'avatar_url', 'banner_url')
         read_only_fields = ('id',)
 
     def get_is_following(self, obj):
@@ -18,6 +20,22 @@ class UserSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated or request.user == obj:
             return False
         return UserFollow.objects.filter(user=request.user, following=obj).exists()
+
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
+    def get_banner_url(self, obj):
+        if obj.banner:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.banner.url)
+            return obj.banner.url
+        return None
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])

@@ -8,6 +8,7 @@ from .serializers import UserSerializer, UserRegistrationSerializer, UserFollowS
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import action
 from .models import UserFollow
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 User = get_user_model()
 
@@ -18,6 +19,7 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(APIView):
     permission_classes = (permissions.AllowAny,)
+    parser_classes = [JSONParser]
 
     def post(self, request):
         email = request.data.get('email')
@@ -46,6 +48,7 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'username'
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_permissions(self):
         if self.action in ['create', 'login']:
@@ -62,7 +65,7 @@ class UserViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], parser_classes=[JSONParser])
     def login(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -143,4 +146,28 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         following = UserFollow.objects.filter(user=user)
         serializer = UserFollowSerializer(following, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='upload-image')
+    def upload_image(self, request, username=None):
+        user = self.get_object()
+        image_type = request.data.get('type')
+        image_file = request.FILES.get('image')
+
+        if not image_file:
+            return Response({'error': 'Nenhuma imagem enviada'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image_type not in ['avatar', 'banner']:
+            return Response({'error': 'Tipo de imagem inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image_file.content_type not in ['image/jpeg', 'image/png']:
+            return Response({'error': 'Formato de imagem inválido. Use JPG ou PNG'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image_type == 'avatar':
+            user.avatar = image_file
+        else:
+            user.banner = image_file
+
+        user.save()
+        serializer = self.get_serializer(user)
         return Response(serializer.data)

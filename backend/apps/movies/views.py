@@ -197,8 +197,17 @@ class FilmeViewSet(viewsets.ReadOnlyModelViewSet):
         except User.DoesNotExist:
             return Response({'error': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
-class ForumCommentViewSet(viewsets.ViewSet):
+class ForumCommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ForumCommentSerializer
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        queryset = ForumComment.objects.all()
+        user = self.request.query_params.get('user')
+        if user:
+            queryset = queryset.filter(user__username=user)
+        return queryset.select_related('user', 'filme').prefetch_related('likes')
 
     @action(detail=True, methods=['post'])
     def like(self, request, pk=None):

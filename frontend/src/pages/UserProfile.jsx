@@ -14,6 +14,9 @@ import {
   Paper,
   Link as MuiLink,
   Grid,
+  Stack,
+  Modal,
+  TextField,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
@@ -21,6 +24,9 @@ import Footer from '../components/Footer';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import CheckIcon from '@mui/icons-material/Check';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import ImageIcon from '@mui/icons-material/Image';
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=1200&q=80';
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=333&color=fff&size=256';
@@ -31,12 +37,20 @@ function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
   const [movies, setMovies] = useState([]);
-  const [reviews, setReviews] = useState([]);
+  const [comments, setComments] = useState([]);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [bannerUrl, setBannerUrl] = useState(null);
   const [userStats, setUserStats] = useState({ assistidos: 0, likes: 0 });
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageType, setImageType] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    bio: '',
+  });
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
   const API_URL = 'http://localhost:8000/api';
@@ -53,20 +67,8 @@ function UserProfile() {
         setUser(data);
         setIsOwnProfile(localStorage.getItem('username') === data.username);
         setIsFollowing(data.is_following || false);
-        if (data.avatar_url) {
-          const avatarRes = await fetch(data.avatar_url, { headers: { Authorization: `Bearer ${token}` } });
-          const avatarBlob = await avatarRes.blob();
-          setAvatarUrl(URL.createObjectURL(avatarBlob));
-        } else {
-          setAvatarUrl(DEFAULT_AVATAR);
-        }
-        if (data.banner_url) {
-          const bannerRes = await fetch(data.banner_url, { headers: { Authorization: `Bearer ${token}` } });
-          const bannerBlob = await bannerRes.blob();
-          setBannerUrl(URL.createObjectURL(bannerBlob));
-        } else {
-          setBannerUrl(DEFAULT_BANNER);
-        }
+        setAvatarUrl(data.avatar_url || DEFAULT_AVATAR);
+        setBannerUrl(data.banner_url || DEFAULT_BANNER);
       } catch (e) {
         setUser(null);
         setAvatarUrl(DEFAULT_AVATAR);
@@ -85,11 +87,11 @@ function UserProfile() {
     async function fetchData() {
       try {
         if (tab === 3) {
-          const res = await fetch(`${API_URL}/users/${username}/reviews/`, {
+          const res = await fetch(`${API_URL}/forum/?user=${username}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
-          setReviews(data);
+          setComments(data.results || []);
         } else {
           const res = await fetch(`${API_URL}/users/${username}/movies/?filtro=${filtro}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -100,7 +102,7 @@ function UserProfile() {
       } catch (e) {
         console.error('Error fetching data:', e);
         setMovies([]);
-        setReviews([]);
+        setComments([]);
       } finally {
         setLoading(false);
       }
@@ -155,6 +157,85 @@ function UserProfile() {
     navigate(`/profile/${uname}`);
   };
 
+  const handleOpenModal = (type) => {
+    setImageType(type);
+    setSelectedImage(null);
+    setOpenModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setSelectedImage(null);
+    setImageType(null);
+  };
+
+  const handleImageSelect = (event) => {
+    const file = event.target.files[0];
+    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      setSelectedImage(file);
+    } else {
+      alert('Por favor, selecione uma imagem JPG ou PNG válida.');
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedImage) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('image', selectedImage);
+    formData.append('type', imageType);
+
+    try {
+      const res = await fetch(`${API_URL}/users/${username}/upload-image/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+        if (imageType === 'avatar') {
+          setAvatarUrl(updatedUser.avatar_url || DEFAULT_AVATAR);
+        } else {
+          setBannerUrl(updatedUser.banner_url || DEFAULT_BANNER);
+        }
+        handleCloseModal();
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Erro ao fazer upload da imagem');
+      }
+    } catch (error) {
+      alert('Erro ao fazer upload da imagem');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/users/${username}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+        handleCloseModal();
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+  };
+
   if (username === 'testuser') {
     return (
       <Box sx={{ minHeight: '100vh', background: '#18191A', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -184,14 +265,18 @@ function UserProfile() {
             cursor: isOwnProfile ? 'pointer' : 'default',
             boxShadow: 3,
           }}
-          onClick={() => isOwnProfile && navigate('/profile/edit')}
         >
           Foto
         </Avatar>
         {isOwnProfile && (
-          <IconButton sx={{ position: 'absolute', right: 32, top: 32, bgcolor: '#23242a' }} onClick={() => navigate('/profile/edit')}>
-            <EditIcon sx={{ color: 'white' }} />
-          </IconButton>
+          <Box sx={{ position: 'absolute', right: 32, top: 32, display: 'flex', gap: 1 }}>
+            <IconButton sx={{ bgcolor: '#23242a' }} onClick={() => handleOpenModal('avatar')}>
+              <EditIcon sx={{ color: 'white' }} />
+            </IconButton>
+            <IconButton sx={{ bgcolor: '#23242a' }} onClick={() => handleOpenModal('banner')}>
+              <ImageIcon sx={{ color: 'white' }} />
+            </IconButton>
+          </Box>
         )}
       </Box>
       <Box sx={{ mt: { xs: 7, sm: 10, md: 13 }, px: { xs: 2, sm: 4 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 4, maxWidth: 1200, mx: 'auto', width: '100%' }}>
@@ -244,7 +329,7 @@ function UserProfile() {
           <Tab label="Assistidos" />
           <Tab label="Favoritos" />
           <Tab label="Assistir depois" />
-          <Tab label="Críticas" />
+          <Tab label="Comentários" />
         </Tabs>
       </Box>
       <Box sx={{ flex: 1, px: { xs: 1, sm: 4 }, pb: 4, maxWidth: 1200, mx: 'auto', width: '100%' }}>
@@ -254,15 +339,23 @@ function UserProfile() {
           </Box>
         ) : tab === 3 ? (
           <Box>
-            <Typography variant="h5" sx={{ mb: 2 }}>Críticas</Typography>
-            {reviews.length === 0 ? (
-              <Typography color="gray">Nenhuma crítica encontrada.</Typography>
+            <Typography variant="h5" sx={{ mb: 2 }}>Comentários</Typography>
+            {comments.length === 0 ? (
+              <Typography color="gray">Nenhum comentário encontrado.</Typography>
             ) : (
-              reviews.map((review) => (
-                <Paper key={review.id} sx={{ mb: 2, p: 2, background: '#23242a' }}>
-                  <Typography variant="subtitle1" fontWeight={700}>{review.filme}</Typography>
-                  <Typography variant="body2" color="gray">{review.data}</Typography>
-                  <Typography sx={{ mt: 1 }}>{review.texto}</Typography>
+              comments.map((comment) => (
+                <Paper key={comment.id} sx={{ mb: 2, p: 2, background: '#23242a' }}>
+                  <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ cursor: 'pointer' }} onClick={() => navigate(`/movie/${comment.filme}`)}>
+                      {comment.filme_titulo || 'Filme'}
+                    </Typography>
+                    <Typography variant="caption" color="gray">{new Date(comment.created_at).toLocaleString()}</Typography>
+                  </Stack>
+                  <Typography sx={{ mt: 1 }}>{comment.texto}</Typography>
+                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                    <IconButton size="small"><ThumbUpIcon fontSize="small" /></IconButton>
+                    <Typography variant="caption">{comment.likes_count}</Typography>
+                  </Stack>
                 </Paper>
               ))
             )}
@@ -329,6 +422,70 @@ function UserProfile() {
         )}
       </Box>
       <Footer />
+
+      <Modal
+        open={openModal}
+        onClose={handleCloseModal}
+        aria-labelledby="upload-image-modal"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Box sx={{
+          bgcolor: '#23242a',
+          borderRadius: 2,
+          boxShadow: 24,
+          p: 4,
+          width: '100%',
+          maxWidth: 500,
+          mx: 2,
+        }}>
+          <Typography variant="h6" component="h2" sx={{ mb: 3, color: 'white' }}>
+            {imageType === 'avatar' ? 'Alterar Foto de Perfil' : 'Alterar Banner'}
+          </Typography>
+          
+          <Box sx={{ mb: 3 }}>
+            <input
+              accept="image/jpeg,image/png"
+              style={{ display: 'none' }}
+              id="image-upload"
+              type="file"
+              onChange={handleImageSelect}
+            />
+            <label htmlFor="image-upload">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<CloudUploadIcon />}
+                sx={{ color: 'white', borderColor: 'white', '&:hover': { borderColor: 'gray' } }}
+              >
+                Selecionar Imagem
+              </Button>
+            </label>
+            {selectedImage && (
+              <Typography sx={{ mt: 2, color: 'white' }}>
+                Arquivo selecionado: {selectedImage.name}
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            <Button onClick={handleCloseModal} sx={{ color: 'gray' }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImageUpload}
+              variant="contained"
+              color="primary"
+              disabled={!selectedImage || uploading}
+            >
+              {uploading ? <CircularProgress size={24} /> : 'Enviar'}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 }
