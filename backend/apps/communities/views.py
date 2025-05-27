@@ -1,15 +1,19 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.shortcuts import get_object_or_404
 from .models import Community, Chat, ChatType, TextMessage
-from .serializers import CommunitySerializer, ChatSerializer
+from .serializers import CommunitySerializer, ChatSerializer, TextMessageSerializer
 from django.contrib.auth import get_user_model
 
 class CommunityViewSet(viewsets.ModelViewSet):
     queryset = Community.objects.all()
     serializer_class = CommunitySerializer
     parser_classes = (JSONParser, MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user, members=[self.request.user])
@@ -64,42 +68,64 @@ class CommunityViewSet(viewsets.ModelViewSet):
         return Response(member_data)
 
 class ChatViewSet(viewsets.ModelViewSet):
-    queryset = Chat.objects.all()
     serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=['get'], url_path='chats')
-    def list_chats(self, request, pk=None):
-        community = Community.objects.get(pk=pk)
-        chats = Chat.objects.filter(community=community)
-        serializer = self.get_serializer(chats, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['get', 'post'], url_path='messages')
-    def chat_messages(self, request, community_id=None, pk=None):
-        chat = self.get_object()
-        if request.method == 'GET':
-            messages = TextMessage.objects.filter(chat=chat).order_by('-sent_at')
-            message_data = [{'username': msg.user.username, 'content': msg.content, 'sent_at': msg.sent_at} for msg in messages]
-            return Response(message_data)
-        elif request.method == 'POST':
-            content = request.data.get('content')
-            if not content:
-                return Response({'error': 'Content is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            TextMessage.objects.create(content=content, user=request.user, chat=chat)
-            return Response({'detail': 'Message posted successfully.'}, status=status.HTTP_201_CREATED)
+    def get_queryset(self):
+        community_id = self.kwargs.get('community_id')
+        community = get_object_or_404(Community, id=community_id)
+        
+        # Verifica se o usuário é membro da comunidade
+        if not community.members.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("You must be a member of the community to access its chats.")
+            
+        return Chat.objects.filter(community_id=community_id)
 
     def perform_create(self, serializer):
         community_id = self.kwargs.get('community_id')
-        community = Community.objects.get(pk=community_id)
+        community = get_object_or_404(Community, id=community_id)
+        
+        # Verifica se o usuário é membro da comunidade
+        if not community.members.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("You must be a member of the community to create chats.")
+            
         serializer.save(community=community)
 
-    def list(self, request, *args, **kwargs):
+class TextMessageViewSet(viewsets.ModelViewSet):
+    serializer_class = TextMessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        chat_id = self.kwargs.get('chat_id')
         community_id = self.kwargs.get('community_id')
-        community = Community.objects.get(pk=community_id)
-        queryset = self.filter_queryset(self.get_queryset().filter(community=community))
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data) 
+        
+        # Verifica se o chat existe e pertence à comunidade correta
+        chat = get_object_or_404(Chat, id=chat_id, community_id=community_id)
+        
+        # Verifica se o usuário é membro da comunidade
+        if not chat.community.members.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("You must be a member of the community to access messages.")
+            
+        return TextMessage.objects.filter(chat_id=chat_id).order_by('-sent_at')
+
+    def create(self, request, *args, **kwargs):
+        chat_id = self.kwargs.get('chat_id')
+        community_id = self.kwargs.get('community_id')
+        
+        # Verifica se o chat existe e pertence à comunidade correta
+        chat = get_object_or_404(Chat, id=chat_id, community_id=community_id)
+        
+        # Verifica se o usuário é membro da comunidade
+        if not chat.community.members.filter(id=self.request.user.id).exists():
+            raise PermissionDenied("You must be a member of the community to send messages.")
+        
+        # Adiciona o chat e o usuário aos dados da requisição
+        data = request.data.copy()
+        data['chat'] = chat.id
+        data['user'] = request.user.id
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers) 

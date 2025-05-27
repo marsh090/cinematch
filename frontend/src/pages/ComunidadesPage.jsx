@@ -35,6 +35,8 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import Header from '../components/Header';
 import PropTypes from 'prop-types';
 import ChatPage from './ChatPage';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const ComunidadesPage = ({ currentUser }) => {
   const navigate = useNavigate();
@@ -106,11 +108,16 @@ const ComunidadesPage = ({ currentUser }) => {
             }
         });
 
-        const filteredCommunities = response.data.filter(community =>
-            community.is_public || community.members.includes(userUUID)
+        // Separar comunidades em que o usuário é membro e comunidades públicas
+        const userCommunities = response.data.filter(community =>
+            community.members.includes(userUUID)
+        );
+        const otherPublicCommunities = response.data.filter(community =>
+            community.is_public && !community.members.includes(userUUID)
         );
 
-        setCommunities(filteredCommunities);
+        setCommunities(userCommunities);
+        setPublicCommunities(otherPublicCommunities);
     } catch (error) {
         console.error('Error fetching communities:', error);
     } finally {
@@ -252,6 +259,14 @@ const ComunidadesPage = ({ currentUser }) => {
     return Object.keys(errors).length === 0;
   };
 
+  const handleCommunityClick = (community) => {
+    console.log('Selected community:', community);
+    setSelectedCommunity(community);
+    setSelectedChat(null);
+    setChats([]);
+    fetchChats(community.id);
+  };
+
   const fetchChats = async (communityId) => {
     console.log('Fetching chats for community ID:', communityId);
     const token = await getAccessToken();
@@ -262,16 +277,12 @@ const ComunidadesPage = ({ currentUser }) => {
                 'Authorization': `Bearer ${token}`
             }
         });
+        console.log('Fetched chats:', response.data);
         setChats(response.data);
     } catch (error) {
         console.error('Error fetching chats:', error);
+        setChats([]);
     }
-  };
-
-  const handleCommunityClick = (community) => {
-    console.log('Selected community:', community);
-    setSelectedCommunity(community);
-    fetchChats(community.id);
   };
 
   const handleOpenChatDialog = () => {
@@ -422,13 +433,13 @@ const ComunidadesPage = ({ currentUser }) => {
           ) : (
             <>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'gray' }}>
-                {searchQuery ? 'Resultados' : 'Comunidades'} ({filteredCommunities.length})
+                Minhas Comunidades ({filteredCommunities.length})
               </Typography>
 
               <List sx={{ p: 0 }}>
                 {filteredCommunities.length === 0 ? (
                   <Typography variant="body2" color="gray" sx={{ textAlign: 'center', mt: 2 }}>
-                    Nenhuma comunidade encontrada
+                    Você ainda não participa de nenhuma comunidade
                   </Typography>
                 ) : (
                   filteredCommunities.map((community) => (
@@ -440,6 +451,7 @@ const ComunidadesPage = ({ currentUser }) => {
                           borderRadius: 2,
                           cursor: 'pointer',
                           '&:hover': { backgroundColor: '#35363a' },
+                          backgroundColor: selectedCommunity?.id === community.id ? '#35363a' : 'transparent',
                         }}
                         onClick={() => handleCommunityClick(community)}
                       >
@@ -581,21 +593,23 @@ const ComunidadesPage = ({ currentUser }) => {
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: 'gray' }}>
                     Chats
                   </Typography>
-                  <Tooltip title="Adicionar chat">
-                    <IconButton
-                      color="primary"
-                      onClick={handleOpenChatDialog}
-                      sx={{ 
-                        backgroundColor: '#35363a',
-                        '&:hover': { backgroundColor: '#4b4c4f' },
-                        borderRadius: 2,
-                        width: 40,
-                        height: 40,
-                      }}
-                    >
-                      <AddIcon />
-                    </IconButton>
-                  </Tooltip>
+                  {selectedCommunity.owner === username && (
+                    <Tooltip title="Adicionar chat">
+                      <IconButton
+                        color="primary"
+                        onClick={handleOpenChatDialog}
+                        sx={{ 
+                          backgroundColor: '#35363a',
+                          '&:hover': { backgroundColor: '#4b4c4f' },
+                          borderRadius: 2,
+                          width: 40,
+                          height: 40,
+                        }}
+                      >
+                        <AddIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
 
                 <List sx={{ p: 0 }}>
@@ -647,12 +661,38 @@ const ComunidadesPage = ({ currentUser }) => {
               )}
             </Box>
 
-            <Button onClick={() => handleAddMember(prompt('Enter username to add:'))} disabled={!selectedCommunity || selectedCommunity.owner !== currentUser.id}>
-                Add Member
-            </Button>
-            <Button onClick={handleDeleteCommunity} disabled={!selectedCommunity || selectedCommunity.owner !== currentUser.id}>
-                Delete Community
-            </Button>
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+              {selectedCommunity.owner === username && (
+                <>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => {
+                      const newMember = prompt('Digite o nome do usuário para adicionar:');
+                      if (newMember) handleAddMember(newMember);
+                    }}
+                    startIcon={<PersonAddIcon />}
+                    sx={{
+                      backgroundColor: '#35363a',
+                      '&:hover': { backgroundColor: '#4b4c4f' },
+                    }}
+                  >
+                    Adicionar Membro
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    color="error"
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja deletar esta comunidade? Esta ação não pode ser desfeita.')) {
+                        handleDeleteCommunity();
+                      }
+                    }}
+                    startIcon={<DeleteIcon />}
+                  >
+                    Deletar Comunidade
+                  </Button>
+                </>
+              )}
+            </Box>
           </Box>
         )}
       </Box>

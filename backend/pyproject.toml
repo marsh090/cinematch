@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "cinematch"
+version = "0.1.0"
+description = "Backend do Cinematch"
+authors = ["Lucas Guarnier"]
+readme = "README.md"
+packages = [{include = "apps"}, {include = "cinematch"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.2.1"
+djangorestframework = "^3.16.0"
+aiohttp = "^3.12.2"
+google-generativeai = "^0.8.5"
+django-cors-headers = "^4.7.0"
+pillow = "^11.2.1"
+django-extensions = "^4.1"
+djangorestframework-simplejwt = "^5.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
