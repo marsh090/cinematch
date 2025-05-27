@@ -25,6 +25,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.users',
     'apps.movies',
+    'apps.events',
+    'apps.communities',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [

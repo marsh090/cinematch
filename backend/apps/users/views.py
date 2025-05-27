@@ -171,3 +171,11 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         serializer = self.get_serializer(user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='uuid-by-username/(?P<username>[^/.]+)')
+    def get_uuid_by_username(self, request, username=None):
+        try:
+            user = User.objects.get(username=username)
+            return Response({'uuid': str(user.id)})
+        except User.DoesNotExist:
+            return Response({'error': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)

@@ -65,7 +65,6 @@ function Home() {
       }
 
       const data = await response.json();
-      console.log('Dados recebidos:', data); // Debug
       
       if (page === 1) {
         setMovies(data.results || []);

@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from django.contrib.auth import get_user_model
 from apps.users.models import UserFollow
+from .services import resumir_avaliacoes_com_gemini
 
 User = get_user_model()
 
@@ -196,6 +197,33 @@ class FilmeViewSet(viewsets.ReadOnlyModelViewSet):
             })
         except User.DoesNotExist:
             return Response({'error': 'Usuário não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='summarize-comments')
+    def summarize_comments(self, request, pk=None):
+        try:
+            filme = self.get_object()
+            comments = ForumComment.objects.filter(filme=filme)
+            
+            if not comments.exists():
+                return Response({'resumo': 'Ainda não há comentários para este filme.'})
+
+            avaliacoes = [
+                {
+                    'nota': None,  # ForumComment não tem avaliação
+                    'curtidas': comment.likes.count(),
+                    'comentario': comment.texto
+                }
+                for comment in comments
+            ]
+            
+            pergunta_usuario = f"Resumo dos comentários do filme {filme.titulo}"
+            resumo = resumir_avaliacoes_com_gemini(pergunta_usuario, avaliacoes)
+            return Response({'resumo': resumo}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'error': 'Erro ao gerar resumo dos comentários', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ForumCommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]

@@ -3,6 +3,13 @@ import asyncio
 from datetime import datetime
 from django.conf import settings
 from .models import Filme
+import os
+import google.generativeai as genai
+
+# Configuração da API do Gemini
+GEMINI_API_KEY = "AIzaSyCgvJ2IGtvMuAgLZOwJdwLkdiKpqCyJJ-M"
+genai.configure(api_key=GEMINI_API_KEY)
+modelo = genai.GenerativeModel(model_name="models/gemini-2.0-flash")
 
 class TMDBService:
     def __init__(self):
@@ -86,3 +93,36 @@ class TMDBService:
         except Exception as e:
             print(f"Erro ao processar filme {movie_id}: {str(e)}")
             return None, False 
+
+def resumir_avaliacoes_com_gemini(pergunta_usuario, avaliacoes):
+    """
+    Usa a API do Gemini para gerar um resumo das avaliações de um filme.
+    """
+    if not avaliacoes:
+        return "Ainda não há comentários para este filme."
+
+    # Prepara o texto com os comentários
+    avaliacoes_str = "\n".join([
+        f"- Curtidas: {a['curtidas']}, Comentário: {a['comentario']}"
+        for a in avaliacoes
+    ])
+
+    prompt = f"""
+Analise os seguintes comentários sobre o filme e gere um resumo que:
+1. Identifique o sentimento geral dos comentários (positivo, negativo ou misto)
+2. Destaque os principais pontos mencionados pelos usuários
+3. Mencione quantos comentários foram analisados
+
+Comentários:
+{avaliacoes_str}
+
+Por favor, formate o resumo de forma clara e concisa, mantendo um tom profissional.
+"""
+
+    # Gera o resumo usando o Gemini
+    try:
+        response = modelo.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Erro ao gerar resumo com Gemini: {str(e)}")
+        return "Não foi possível gerar o resumo dos comentários neste momento." 

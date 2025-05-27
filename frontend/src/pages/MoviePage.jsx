@@ -19,6 +19,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import Rating from '@mui/material/Rating';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ReactMarkdown from 'react-markdown';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 function MoviePage() {
   const { id } = useParams();
@@ -38,6 +40,8 @@ function MoviePage() {
   const [replyOpen, setReplyOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const [userRating, setUserRating] = useState(actions.avaliacao || 0);
+  const [commentSummary, setCommentSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   // Fetch movie info
   const fetchMovie = useCallback(() => {
@@ -128,6 +132,44 @@ function MoviePage() {
   useEffect(() => {
     fetchForum();
   }, [fetchForum]);
+
+  // Fetch comment summary
+  const fetchCommentSummary = useCallback(() => {
+    setSummaryLoading(true);
+    fetch(`http://localhost:8000/api/movies/${id}/summarize-comments/`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.resumo) {
+          setCommentSummary(data.resumo);
+        } else if (data && data.error) {
+          console.error('Error from API:', data.error);
+          setSnackbar({ open: true, message: data.error, severity: 'error' });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching comment summary:', error);
+        setSnackbar({ 
+          open: true, 
+          message: 'Erro ao carregar o resumo dos comentários', 
+          severity: 'error' 
+        });
+      })
+      .finally(() => setSummaryLoading(false));
+  }, [id, token, setSnackbar]);
+
+  useEffect(() => {
+    fetchCommentSummary();
+  }, [fetchCommentSummary]);
 
   // Handle actions
   const handleAction = (field) => {
@@ -259,6 +301,7 @@ function MoviePage() {
 
   return (
     <Box sx={{ minHeight: '100vh', background: '#161718', display: 'flex', flexDirection: 'column' }}>
+      <style>{styles}</style>
       <Header />
       {/* Info do filme */}
       <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', p: 4, overflow: 'hidden' }}>
@@ -322,6 +365,42 @@ function MoviePage() {
           </Box>
         </Box>
       </Box>
+      {/* Resumo dos comentários */}
+      <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Typography variant="h6">
+            Resumo dos Comentários
+          </Typography>
+          <SmartToyIcon sx={{ 
+            color: 'primary.main',
+            animation: summaryLoading ? 'pulse 1.5s ease-in-out infinite' : 'none'
+          }} />
+        </Box>
+        {summaryLoading ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            p: 3,
+            justifyContent: 'center'
+          }}>
+            <CircularProgress size={20} />
+            <Typography>
+              Analisando comentários com IA...
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{
+            '& p': { mb: 1 },
+            '& h2': { fontSize: '1.2rem', fontWeight: 'bold', mb: 2 },
+            '& strong': { color: 'primary.main' },
+            '& ul': { pl: 2, mb: 2 },
+            '& li': { mb: 1 },
+          }}>
+            <ReactMarkdown>{commentSummary}</ReactMarkdown>
+          </Box>
+        )}
+      </Box>
       {/* Fórum */}
       <Box sx={{ flex: 1, background: '#181c24', p: 4 }}>
         <Typography variant="h3" sx={{ mb: 2 }}>Fórum do Filme</Typography>
@@ -334,6 +413,12 @@ function MoviePage() {
             size="small"
             sx={{ background: '#23242a', borderRadius: 2 }}
             disabled={!actions.assistido}
+            multiline
+            rows={1}
+            helperText={actions.assistido ? "Você pode usar Markdown para formatar seu texto (negrito, itálico, links, etc)" : ""}
+            FormHelperTextProps={{
+              sx: { color: 'text.secondary' }
+            }}
           />
           <Button type="submit" variant="contained" color="primary" sx={{ fontWeight: 700 }} disabled={!actions.assistido}>Enviar</Button>
         </Box>
@@ -380,6 +465,9 @@ function MoviePage() {
             variant="outlined"
             value={replyText}
             onChange={e => setReplyText(e.target.value)}
+            multiline
+            rows={1}
+            helperText="Você pode usar Markdown para formatar seu texto (negrito, itálico, links, etc)"
           />
         </DialogContent>
         <DialogActions>
@@ -458,7 +546,48 @@ function ForumCommentItem({ comment, onLike, onReport, onReply, canReply }) {
         <Typography sx={{ fontWeight: 700 }}>{comment.user.name || comment.user.username}</Typography>
         <Typography variant="caption" sx={{ color: 'gray' }}>{new Date(comment.created_at).toLocaleString()}</Typography>
       </Stack>
-      <Typography sx={{ mt: 1, mb: 1 }}>{comment.texto}</Typography>
+      <Box sx={{
+        mt: 1,
+        mb: 1,
+        '& p': { my: 1 },
+        '& h1, & h2, & h3, & h4, & h5, & h6': {
+          fontSize: '1rem',
+          fontWeight: 'bold',
+          my: 1
+        },
+        '& code': {
+          bgcolor: 'rgba(0, 0, 0, 0.1)',
+          p: 0.5,
+          borderRadius: 1,
+          fontFamily: 'monospace'
+        },
+        '& pre': {
+          bgcolor: 'rgba(0, 0, 0, 0.1)',
+          p: 1,
+          borderRadius: 1,
+          overflow: 'auto'
+        },
+        '& blockquote': {
+          borderLeft: '3px solid',
+          borderColor: 'primary.main',
+          pl: 2,
+          my: 1,
+          fontStyle: 'italic'
+        },
+        '& ul, & ol': {
+          pl: 3,
+          my: 1
+        },
+        '& a': {
+          color: 'primary.main',
+          textDecoration: 'none',
+          '&:hover': {
+            textDecoration: 'underline'
+          }
+        }
+      }}>
+        <ReactMarkdown>{comment.texto}</ReactMarkdown>
+      </Box>
       <Stack direction="row" spacing={2} alignItems="center">
         <IconButton size="small" onClick={handleLike}><ThumbUpIcon fontSize="small" /></IconButton>
         <Typography variant="caption">{comment.likes_count}</Typography>
@@ -490,5 +619,22 @@ function ForumCommentItem({ comment, onLike, onReport, onReply, canReply }) {
     </Box>
   );
 }
+
+const styles = `
+  @keyframes pulse {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+`;
 
 export default MoviePage; 

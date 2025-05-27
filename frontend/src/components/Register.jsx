@@ -43,7 +43,7 @@ function Register() {
     setErrors({});
 
     try {
-      const response = await fetch('http://localhost:8000/api/users/register/', {
+      const response = await fetch('http://localhost:8000/api/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,6 +72,8 @@ function Register() {
       }
 
       if (response.ok) {
+        setSnackbarMessage('Registro realizado com sucesso! Redirecionando...');
+        setOpenSnackbar(true);
         setTimeout(() => {
           navigate('/login');
         }, 1000);

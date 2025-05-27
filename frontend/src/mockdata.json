@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "title": "Maratona Star Wars",
+    "description": "Assista todos os filmes da saga em sequência!",
+    "event_datetime": "2025-03-09T23:00:00",
+    "owner": "roberto_bostos",
+    "participants": ["zanon", "ana_silva"],
+    "location": "Evento Virtual"
+  },
+  {
+    "id": 2,
+    "title": "Clube do Livro: Sci-Fi",
+    "description": "Discussão sobre livros de ficção científica.",
+    "event_datetime": "2025-03-12T22:00:00",
+    "owner": "lucas_guarnier",
+    "participants": ["roberto_bostos", "ana_silva"],
+    "location": "Sala 2"
+  },
+  {
+    "id": 3,
+    "title": "Sessão Pipoca",
+    "description": "Filme surpresa do mês!",
+    "event_datetime": "2025-03-26T22:00:00",
+    "owner": "zanon",
+    "participants": ["zanon"],
+    "location": "Evento Virtual"
+  }
+] 

@@ -1,0 +1,40 @@
+{
+    "id": 1,
+    "name": "Amantes de SciFi",
+    "description": "Comunidade para discussão de filmes e séries de ficção científica. Debatemos desde clássicos como 2001 até produções recentes.",
+    "image_url": "https://images.unsplash.com/photo-1581822261290-991b38693d1b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
+    "is_public": true,
+    "owner": {
+      "username": "zanon"
+    },
+    "members_count": 124,
+    "members": [
+      {
+        "username": "João Silva"
+      },
+      {
+        "username": "zanon"
+      },
+      {
+        "username": "corninho"
+      }
+    ],
+    "created_at": "2023-04-15T10:30:00Z",
+    "chats": [
+        {
+            "id": 1,
+            "type": "text",
+            "name": "Chat Geral"
+        },
+        {
+            "id": 2,
+            "type": "poll",
+            "name": "Enquete da Semana"
+        },
+        {
+            "id": 3,
+            "type": "calendar",
+            "name": "Eventos de Outubro"
+        }
+    ] 
+}
